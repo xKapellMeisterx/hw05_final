@@ -226,7 +226,9 @@ class PostViewsTests(TestCase):
         """ Проверяем, что новая запись пользователя появляется в ленте тех,
         кто на него подписан и не появляется в ленте тех, кто не подписан."""
         self.authorized_client_follower.get(self.url_post_profile_follow)
-        response = self.authorized_client_author.get(self.url_post_follow_index)
+        response = self.authorized_client_author.get(
+            self.url_post_follow_index
+        )
         self.assertContains(response, self.post.pk)
         response = self.authorized_client.get(self.url_post_follow_index)
         post_object = response.context['page_obj']

@@ -23,24 +23,10 @@ class PostViewsTests(TestCase):
             slug='Test_slug',
             description='Тестовое описание',
         )
-        cls.small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        cls.uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=cls.small_gif,
-            content_type='image/gif'
-        )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост',
-            group=cls.group,
-            image=cls.uploaded
+            group=cls.group
         )
         cls.url_post_index = reverse('posts:index')
         cls.url_post_follow_index = reverse('posts:follow_index')
@@ -66,6 +52,7 @@ class PostViewsTests(TestCase):
         cls.form = PostForm()
 
     def setUp(self):
+        cache.clear()
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
@@ -91,7 +78,30 @@ class PostViewsTests(TestCase):
         }
 
     def compare_posts(self, post_obj_from_db, post_obj_from_context):
-        """Сравниваем содержимое полей двух постов."""
+        """Функция сравнивания содержимого полей двух постов."""
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
+        form_fields = {
+            'text': self.post.text,
+            'group': Group.objects.get(slug='Test_slug').id,
+            'image': uploaded
+        }
+        self.authorized_client_author.post(
+            reverse('posts:post_edit', kwargs={'post_id': f'{self.post.id}'}),
+            data=form_fields,
+            follow=True
+        )
         compare_params = ('author', 'text', 'group', 'image')
         for field_name in compare_params:
             with self.subTest():
@@ -194,7 +204,7 @@ class PostViewsTests(TestCase):
                     )
 
     def test_cache_timeout(self):
-        """Проверяем, что кэш страницы index работает"""
+        """Проверяем, что кэш страницы index работает."""
         response = self.authorized_client_author.get(self.url_post_index)
         Post.objects.filter(pk=self.post.pk).delete()
         new_response = self.authorized_client_author.get(self.url_post_index)
@@ -204,7 +214,7 @@ class PostViewsTests(TestCase):
         self.assertNotEqual(response.content, check_response.content)
 
     def test_authorized_user_can_subscribe_unsubscribe(self):
-        """ Проверяем, что авторизованный пользователь
+        """Проверяем, что авторизованный пользователь
         может подписываться на других пользователей и отписываться от них."""
         subscribe_count = Follow.objects.count()
         self.authorized_client_follower.get(self.url_post_profile_follow)
@@ -215,7 +225,7 @@ class PostViewsTests(TestCase):
         self.assertEqual(subscribe_count, del_new_subscribe_count)
 
     def test_authorized_user_cannot_subscribe_to_himself(self):
-        """ Проверяем, что авторизованный пользователь
+        """Проверяем, что авторизованный пользователь
         не может подписываться на самого себя."""
         subscribe_count = Follow.objects.count()
         self.authorized_client_author.get(self.url_post_profile_follow)
@@ -223,7 +233,7 @@ class PostViewsTests(TestCase):
         self.assertEqual(subscribe_count, new_subscribe_count)
 
     def test_new_post_appears_in_follow_index(self):
-        """ Проверяем, что новая запись пользователя появляется в ленте тех,
+        """Проверяем, что новая запись пользователя появляется в ленте тех,
         кто на него подписан и не появляется в ленте тех, кто не подписан."""
         self.authorized_client_follower.get(self.url_post_profile_follow)
         response = self.authorized_client_author.get(

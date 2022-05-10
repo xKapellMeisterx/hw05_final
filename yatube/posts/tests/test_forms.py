@@ -62,7 +62,7 @@ class TaskCreateFormTests(TestCase):
         )
         form_data = {
             'text': 'Непохожий на меня, непохожий на тебя',
-            'group': Group.objects.get(slug='Test_slug').id,
+            'group': self.group.id,
             'image': uploaded,
         }
         response = self.authorized_client.post(
@@ -78,7 +78,7 @@ class TaskCreateFormTests(TestCase):
             Post.objects.filter(
                 author=self.user,
                 text='Непохожий на меня, непохожий на тебя',
-                group=Group.objects.get(slug='Test_slug').id,
+                group=self.group.id,
                 image='posts/small.gif'
             ).exists()
         )

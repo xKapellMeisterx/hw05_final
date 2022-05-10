@@ -22,6 +22,7 @@ class PostURLTests(TestCase):
             author=cls.user,
             text='Тестовый пост',
         )
+        cls.url_edit = f'/posts/{cls.post.id}/edit/'
 
     def setUp(self):
         self.guest_client = Client()
@@ -103,9 +104,7 @@ class PostURLTests(TestCase):
                 self.assertTemplateUsed(response, template)
         response = self.authorized_client.get('/create/')
         self.assertTemplateUsed(response, 'posts/post_create.html')
-        response = self.authorized_client_author.get(
-            f'/posts/{self.post.id}/edit/'
-        )
+        response = self.authorized_client_author.get(self.url_edit)
         self.assertTemplateUsed(response, 'posts/post_create.html')
 
     def test_of_the_right_to_create_a_post(self):
@@ -117,12 +116,9 @@ class PostURLTests(TestCase):
 
     def test_of_the_right_to_edit_a_post(self):
         """Проверяем доступ страницы редактирования поста."""
-        responce = self.guest_client.get(f'/posts/{self.post.id}/edit/',
-                                         follow=True)
+        responce = self.guest_client.get(self.url_edit, follow=True)
         self.assertRedirects(responce, '/auth/login/?next=/posts/1/edit/')
-        responce = self.authorized_client.get(f'/posts/{self.post.id}/edit/',
-                                              follow=True)
+        responce = self.authorized_client.get(self.url_edit, follow=True)
         self.assertRedirects(responce, '/posts/1/'),
-        response = self.authorized_client_author.get(f'/posts/{self.post.id}'
-                                                     f'/edit/')
+        response = self.authorized_client_author.get(self.url_edit)
         self.assertEqual(response.status_code, HTTPStatus.OK)

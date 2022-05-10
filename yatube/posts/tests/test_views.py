@@ -1,17 +1,22 @@
+import tempfile
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django import forms
 
 from ..forms import PostForm
 from ..models import Group, Follow, Post
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 User = get_user_model()
 POSTS_COUNT = 13
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostViewsTests(TestCase):
 
     @classmethod
@@ -79,6 +84,16 @@ class PostViewsTests(TestCase):
 
     def compare_posts(self, post_obj_from_db, post_obj_from_context):
         """Функция сравнивания содержимого полей двух постов."""
+        compare_params = ('author', 'text', 'group', 'image')
+        for field_name in compare_params:
+            with self.subTest():
+                self.assertEqual(
+                    getattr(post_obj_from_db, field_name),
+                    getattr(post_obj_from_context, field_name)
+                )
+
+    def test_adding_image(self):
+        """Проверяем добавление картинки к существующему посту."""
         small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -92,23 +107,24 @@ class PostViewsTests(TestCase):
             content=small_gif,
             content_type='image/gif'
         )
-        form_fields = {
+        form_data = {
             'text': self.post.text,
-            'group': Group.objects.get(slug='Test_slug').id,
-            'image': uploaded
+            'group': self.group.id,
+            'image': uploaded,
         }
         self.authorized_client_author.post(
             reverse('posts:post_edit', kwargs={'post_id': f'{self.post.id}'}),
-            data=form_fields,
+            data=form_data,
             follow=True
         )
-        compare_params = ('author', 'text', 'group', 'image')
-        for field_name in compare_params:
-            with self.subTest():
-                self.assertEqual(
-                    getattr(post_obj_from_db, field_name),
-                    getattr(post_obj_from_context, field_name)
-                )
+        self.assertTrue(
+            Post.objects.filter(
+                author=self.user,
+                text=self.post.text,
+                group=self.group.id,
+                image='posts/small.gif'
+            ).exists()
+        )
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -147,7 +163,7 @@ class PostViewsTests(TestCase):
 
     def test_post_detail_pages_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
-        response = (self.authorized_client.get(self.url_post_detail))
+        response = self.authorized_client.get(self.url_post_detail)
         first_object = response.context.get('post')
         PostViewsTests.compare_posts(self, first_object, self.post)
 
@@ -181,7 +197,7 @@ class PostViewsTests(TestCase):
                 self.assertContains(response, self.post.pk)
 
     def test_paginator(self):
-        """Проверка пагинатора"""
+        """Проверка пагинатора."""
         Post.objects.bulk_create([Post(
             author=self.user,
             text='Тестовый пост',

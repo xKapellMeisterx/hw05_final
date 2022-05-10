@@ -37,12 +37,16 @@ class PostURLTests(TestCase):
             'posts/profile.html': '/profile/HasNoName/',
             'posts/post_detail.html': '/posts/1/',
         }
-        self.url_names_public = [
-            '/', '/group/Test_slug/', '/profile/HasNoName/',
-            f'/posts/{self.post.id}/']
-        self.url_names_private = [
-            '/create/', f'/posts/{self.post.id}/edit/'
-        ]
+        self.url_names_public = (
+            '/',
+            '/group/Test_slug/',
+            '/profile/HasNoName/',
+            f'/posts/{self.post.id}/'
+        )
+        self.url_names_private = (
+            '/create/',
+            f'/posts/{self.post.id}/edit/'
+        )
 
     def test_urls_are_accessible_guest_client(self):
         """Проверяем коды HTTP для
@@ -59,8 +63,8 @@ class PostURLTests(TestCase):
     def test_urls_are_accessible_authorized_client(self):
         """Проверяем коды HTTP для
         авторизованного пользователя."""
-        self.url_names_public.extend(self.url_names_private)
-        for fild in self.url_names_public:
+        self.all_url = self.url_names_public + self.url_names_private
+        for fild in self.all_url:
             with self.subTest():
                 response = self.authorized_client_author.get(fild)
                 self.assertEqual(response.status_code, HTTPStatus.OK)

@@ -54,6 +54,12 @@ class PostViewsTests(TestCase):
         cls.url_post_profile_unfollow = reverse(
             'posts:profile_unfollow', kwargs={'username': f'{cls.post.author}'}
         )
+        cls.urls = (
+            cls.url_post_index,
+            cls.url_post_profile,
+            cls.url_post_group_list,
+            cls.url_post_detail
+        )
         cls.form = PostForm()
 
     def setUp(self):
@@ -113,18 +119,14 @@ class PostViewsTests(TestCase):
             'image': uploaded,
         }
         self.authorized_client_author.post(
-            reverse('posts:post_edit', kwargs={'post_id': f'{self.post.id}'}),
+            self.url_post_create_authorized_client_author,
             data=form_data,
             follow=True
         )
-        self.assertTrue(
-            Post.objects.filter(
-                author=self.user,
-                text=self.post.text,
-                group=self.group.id,
-                image='posts/small.gif'
-            ).exists()
-        )
+        for url in self.urls:
+            with self.subTest(url=url):
+                response = self.authorized_client_author.get(url)
+                self.assertContains(response, '<img')
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -187,11 +189,7 @@ class PostViewsTests(TestCase):
     def test_post_appears_on_correct_pages(self):
         """Проверка появления поста на главной, групповой страницах и странице
         поста."""
-        urls = (self.url_post_index,
-                self.url_post_group_list,
-                self.url_post_detail
-                )
-        for url in urls:
+        for url in self.urls:
             with self.subTest(url=url):
                 response = self.authorized_client_author.get(url)
                 self.assertContains(response, self.post.pk)

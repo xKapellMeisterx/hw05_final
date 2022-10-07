@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 
 from django.conf import settings
@@ -61,6 +62,11 @@ class PostViewsTests(TestCase):
             cls.url_post_detail
         )
         cls.form = PostForm()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         cache.clear()
@@ -139,7 +145,7 @@ class PostViewsTests(TestCase):
 
     def test_index_page_show_correct_context(self):
         """Шаблон index страницы сформирован с правильным контекстом."""
-        response = self.authorized_client.get(self.url_post_index)
+        response = self.authoried_client.get(self.url_post_index)
         first_object = response.context['page_obj'][0]
         PostViewsTests.compare_posts(self, first_object, self.post)
 
